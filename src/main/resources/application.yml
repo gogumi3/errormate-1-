@@ -1,0 +1,13 @@
+# 스프링이랑 디비 연결 부분
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/errormate
+    username: root
+    password: 1234
+
+  jpa:
+    hibernate:
+      ddl-auto: validate  # 자바의 Entity와 실제 MYSQL 테이블 구조가 맞는지 검사
+
+  flyway:
+    enabled: true
