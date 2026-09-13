@@ -1,10 +1,8 @@
 package com.errormate.service;
 
-import com.errormate.domain.ErrorCause;
-import com.errormate.domain.ErrorInfo;
+import com.errormate.domain.*;
 import com.errormate.dto.error.ErrorDetailResponse;
-import com.errormate.repository.ErrorCauseRepository;
-import com.errormate.repository.ErrorInfoRepository;
+import com.errormate.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +14,9 @@ public class ErrorInfoService {
 
     private final ErrorInfoRepository errorInfoRepository;
     private final ErrorCauseRepository errorCauseRepository;
+    private final SolutionRepository solutionRepository;
+    private final CodeExampleRepository codeExampleRepository;
+    private final SimilarErrorRepository similarErrorRepository;
 
     // 컨트롤러에서 값을 받아오면 다시 레파지토리로 넘김
 
@@ -49,9 +50,17 @@ public class ErrorInfoService {
 
         List<ErrorCause> errorCauses = errorCauseRepository.findByErrorId(id);
 
-        return new ErrorDetailResponse(errorInfo, errorCauses);
+        List<Solution> solutions = solutionRepository.findByErrorId(id);
+
+        List<CodeExample> codeExamples = codeExampleRepository.findByErrorId(id);
+
+        List<SimilarError> similarErrors = similarErrorRepository.findByErrorId(id);
+
+        return new ErrorDetailResponse(errorInfo, errorCauses, solutions, codeExamples, similarErrors);
 
         // 에러 존재하면 에러에 대한 정보와 발생원인을 포함한 새로운 객체 생성
     }
+
+
 
 }
