@@ -4,10 +4,12 @@ import com.errormate.domain.*;
 import com.errormate.dto.error.CodeExampleResponse;
 import com.errormate.dto.error.ErrorDetailResponse;
 import com.errormate.dto.error.ErrorInfoResponse;
+import com.errormate.exception.InvalidSearchKeywordException;
 import com.errormate.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.errormate.exception.ErrorNotFoundException;
 
 import java.util.List;
 
@@ -23,8 +25,9 @@ public class ErrorInfoService {
     private final SimilarErrorRepository similarErrorRepository;
 
     public ErrorInfoResponse findByName(String name) {
+        validateSearchKeyword(name);
         ErrorInfo errorInfo = errorInfoRepository.findByName(name)
-                .orElseThrow(() -> new IllegalArgumentException("해당 에러를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ErrorNotFoundException("해당 에러를 찾을 수 없습니다."));
 
         return new ErrorInfoResponse(
                 errorInfo.getId(),
@@ -38,6 +41,7 @@ public class ErrorInfoService {
     }
 
     public List<ErrorInfoResponse> searchByName(String keyword) {
+        validateSearchKeyword(keyword);
         return errorInfoRepository.findByNameContainingIgnoreCase(keyword)
                 .stream()
                 .map(errorInfo -> new ErrorInfoResponse(
@@ -54,7 +58,7 @@ public class ErrorInfoService {
 
     public ErrorInfo findById(Long id) {
         return errorInfoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("해당 에러를 찾을 수 없습니다"));
+                .orElseThrow(() -> new ErrorNotFoundException("해당 에러를 찾을 수 없습니다"));
     }
 
     public List<ErrorCause> findCausesByErrorId(Long errorId) {
@@ -63,7 +67,7 @@ public class ErrorInfoService {
 
     public ErrorDetailResponse findDetailById(Long id) {
         ErrorInfo errorInfo = errorInfoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("해당 에러를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ErrorNotFoundException("해당 에러를 찾을 수 없습니다."));
 
         List<String> causes = errorCauseRepository.findByErrorId(id)
                 .stream()
@@ -103,4 +107,14 @@ public class ErrorInfoService {
                 similarErrors
         );
     }
+
+    public void validateSearchKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            throw new InvalidSearchKeywordException(
+                    "검색어를 입력해 주세요."
+            );
+        }
+    }
+
+
 }
