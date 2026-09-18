@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface SimilarErrorRepository extends JpaRepository<SimilarError, Long> {
 
-    List<SimilarError> findByErrorId(Long ErrorId);
+    List<SimilarError> findByErrorId(Long errorId);
 }
+

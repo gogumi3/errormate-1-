@@ -2,7 +2,6 @@ package com.errormate.repository;
 
 import com.errormate.domain.ErrorInfo;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.repository.ListCrudRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,3 +15,4 @@ public interface ErrorInfoRepository extends JpaRepository<ErrorInfo, Long> {
     List<ErrorInfo> findByNameContainingIgnoreCase(String keyword);
                    // 찾다 name필드 기준으로 해당 문자열이 포함되었는지 대소문자 무시
 }
+
