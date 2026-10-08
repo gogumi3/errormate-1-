@@ -23,9 +23,9 @@ public class ErrorAnalysisService {
     @Value("${gemini.api.key}")
     private String apiKey;  // << 실제 api키가 들어오는 변수
 
-    public ErrorAnalysisService(RestClient.Builder builder) {
+    public ErrorAnalysisService() {
         // 이 클래스를 생성시 RestClient를 만들 수 있는 Builder도 생성 (의존성 주입)
-        this.restClient = builder
+        this.restClient = RestClient.builder()
             // 클래스가 가진 변수 , 생성자로 받은 RestClient 제작 도구
                 // builder를 이용하여 RestClient룰 만든 다음 restClient 변수에 저장
                 .baseUrl("https://generativelanguage.googleapis.com")
@@ -75,14 +75,19 @@ public class ErrorAnalysisService {
 
         // 이 구조로 한 이유 : 제미나이 API가 이러한 구조를 요구
 
-
+        // Gemini 부분에 post 방식으로 요청을 보냄
         Map response = restClient.post()
-                .uri("/v1beta/models/gemini-2.5-flash-lite:generateContent")
+                // 실제 경로
+                .uri("/v1beta/models/gemini-3.5-flash-lite:generateContent")
+                // 내 api 키로 보내는 인증 정보
                 .header("x-goog-api-key", apiKey)
+                // 위에 requestBody를 실제 요청 본문에 넣음
                 .body(requestBody)
+                // 응답 받는 부분
                 .retrieve()
+                // Gemini가 json 형태로 응답시 java의 map 형태로 바꿔서 받음
                 .body(Map.class);
-
+        // 실제 답변 문자열만 꺼내는 함수 호출
         String aiText = extractText(response);
 
         return new ErrorAnalysisResponse(
@@ -92,16 +97,24 @@ public class ErrorAnalysisService {
         );
     }
 
+    // 응답 json 전체를 받아서 실제 text만 꺼내서 String 으로 반환하는 메서드
     private String extractText(Map response) {
         List<Map<String, Object>> candidates =
                 (List<Map<String, Object>>) response.get("candidates");
+        // json의 candidates 값을 꺼냄
+        // candidates 는 배열이라서 List로 받음 그 리스트안에 객체가 들어있기 떄문에 Object 사용
 
         Map<String, Object> content =
                 (Map<String, Object>) candidates.get(0).get("content");
+        // 첫번째 결과 꺼내고 그 안에 content를 꺼냄 content도 객체여서 String , Object
 
         List<Map<String, Object>> parts =
                 (List<Map<String, Object>>) content.get("parts");
+        // content 안에서 parts 를 꺼냄
+
 
         return (String) parts.get(0).get("text");
+        // parts.get(0)로 첫번째 parts 객체를 꺼내고 그안에 text로 실제 답변을 가져옴
+        // 그 값이 문자열이기 때문에 String 형변환
     }
 }

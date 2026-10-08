@@ -1,102 +1,68 @@
 # ErrorMate 프론트엔드
 
-React + Vite. 기본 디자인이며, 검색·상세 API를 연결한 화면입니다.
-이 프로젝트는 프론트엔드만 포함합니다. 기존 Spring Boot 프로젝트와 별도 폴더에서 실행하세요.
+React + Vite 기반의 기존 디자인을 유지하고, 현재 백엔드에 구현된 검색·상세 조회·AI 분석만 연결합니다. 백엔드 코드는 수정하지 않았습니다.
 
-## Windows / VSCode 실행
+## 실행
 
-1. ZIP을 모두 추출합니다. 발표자료 폴더 안에 덮어쓰지 마세요.
-2. VSCode → 파일 → 폴더 열기 → 압축을 푼 `errormate-frontend` 폴더를 선택합니다.
-3. 왼쪽 파일 목록에 `package.json`, `vite.config.js`, `src`가 보이는지 확인합니다.
-4. IntelliJ에서 기존 ErrorMate Spring Boot 서버를 실행합니다. 기본 포트는 8080입니다.
-5. VSCode → 터미널 → 새 터미널에서 실행합니다.
+Node.js 22.12 이상이 필요합니다. 저장소의 `frontend` 폴더에서 실행하세요.
 
 ```powershell
-npm.cmd ci
+npm.cmd install
 npm.cmd run dev
 ```
 
-6. 브라우저에서 http://localhost:5173 을 엽니다.
-7. 두 서버는 실행 상태로 둡니다. 종료는 터미널에서 Ctrl+C입니다.
+브라우저: http://localhost:5173
 
-Node.js 22.12 이상 필요. 설치한 최신 LTS를 사용하세요.
-`npm.cmd`는 Windows PowerShell 실행 정책을 변경하지 않고 npm을 실행합니다.
-`npm ci`는 처음 또는 의존성이 변경됐을 때만 필요합니다. 이후에는 `npm.cmd run dev`만 실행하세요.
-index.html을 더블클릭하거나 Live Server로 실행하지 마세요.
+백엔드는 별도로 실행해야 합니다. 현재 백엔드 설정상 MySQL의 `errormate` DB와 `GEMINI_API_KEY` 환경변수가 필요합니다. API 키는 백엔드에만 설정하세요. 검색 결과는 실제 DB 등록 데이터에 따라 달라집니다.
 
-## 가능한 동작
+기본 API 대상은 http://localhost:8080 입니다. 주소를 바꾸려면 `frontend/.env.local`을 만들고 다음을 입력한 후 Vite를 재시작하세요.
 
-- 일부 이름 검색(기본) / 정확한 이름 검색 선택
-- 검색 버튼 또는 Enter로 검색
-- 빈 검색어·공백 입력 안내와 입력창 포커스
-- 검색 중 표시 / 결과 개수 / 빈 결과 안내
-- 결과 카드에서 상세 화면 이동
-- 에러 설명·메시지 예시·원인·해결 방법·코드 예제 표시
-- 예제 코드 복사 및 실패 안내
-- 유사 에러 이름 클릭 → 정확한 이름 재검색(현재 백엔드가 이름만 반환하기 때문)
-- 검색 결과로 돌아가기, 브라우저 뒤로/앞으로, URL 새로고침
-- 백엔드 400·404의 message / description / suggestion 표시
-- 네트워크 오류·서버 오류·15초 응답 지연 안내 및 재시도
-- 이전 요청 취소 처리: 검색이나 페이지가 바뀌어도 늦게 온 결과가 새 화면을 덮지 않음
-
-## 아직 작동하지 않는 기능
-
-즐겨찾기 추가·삭제, 해결 완료 저장, 검색/해결 기록 저장·조회, 로그인.
-관련 메뉴는 준비 중 화면으로 이동합니다. 저장 버튼은 disabled 상태입니다.
-가짜 로그인·저장·localStorage 기록은 구현하지 않았습니다.
-
-## 연결한 API
-
-| 기능 | GET 요청 |
-|---|---|
-| 일부 이름 검색 | /errors/search/partial?keyword=Null |
-| 정확한 이름 검색 | /errors/search?name=NullPointerException |
-| 상세 | /errors/{id} |
-
-목록 응답: id, name, language, type, category, messagePattern, description.
-상세 응답: 위 필드 + causes: 문자열 배열, solutions: 문자열 배열,
-codeExamples: {badCode, goodCode, explanation} 배열, similarErrors: 문자열 배열.
-오류 응답: status, message, description, suggestion.
-이 계약은 이 대화에서 확인한 백엔드 코드를 기준으로 합니다.
-
-## 포트 / 서버 연결
-
-Vite 개발 서버가 `/errors` 요청을 http://localhost:8080 으로 프록시합니다.
-개발 시 Spring CORS 설정을 바꾸지 않아도 됩니다.
-백엔드 포트가 다르면 `.env.example`을 `.env`로 복사한 뒤 BACKEND_URL을 수정하고 프론트를 재시작하세요.
-VITE_API_BASE_URL은 로컬 개발에서는 비워 두세요.
-5173 포트 사용 중이면 기존 프론트 프로세스를 종료하고 재실행하세요.
-검색 결과가 없으면 실제 DB에 해당 이름이 있는지 확인하세요. 프론트는 샘플 데이터를 삽입하지 않습니다.
-정확한 이름 조회에서 404는 검색어에 맞는 데이터가 없다는 뜻입니다.
-
-## 파일 역할
-
-- src/main.jsx: 메뉴·검색·상세·준비 중 화면과 상호작용
-- src/api.js: 백엔드 호출·오류 변환·타임아웃
-- src/style.css: 임시 디자인, 반응형 배치
-- vite.config.js: 개발 서버와 백엔드 프록시
-- tests/api.test.mjs: API 요청/응답 처리 테스트
-
-## 검증
-
-```powershell
-npm.cmd test
-npm.cmd run build
+```dotenv
+BACKEND_URL=http://localhost:8080
 ```
 
-제작 환경에서 API 처리 테스트 7개와 production build 통과.
-테스트는 모의 응답 기반이며 실제 사용자 PC의 Spring Boot/MySQL에는 연결하지 않았습니다.
-자동 브라우저 테스트는 실행 환경에 브라우저가 없어 수행하지 못했습니다.
-실제 확인: 빈 검색 → 일부 검색 → 상세 클릭 → 코드 복사 → 유사 에러 검색 → 뒤로 가기 → 준비 중 메뉴.
+브라우저는 같은 출처의 상대 경로를 호출하고 Vite가 `/errors`, `/api/analyze`를 백엔드에 전달하므로 로컬 개발에서는 백엔드 CORS 수정이 필요하지 않습니다. `VITE_API_BASE_URL`을 설정하면 개발 프록시를 우회하므로 기본 로컬 실행에서는 설정하지 마세요.
 
-## 나중에 배포할 때
+배포 시 Vite 개발 프록시는 적용되지 않습니다. 운영 서버에서 위 경로를 백엔드로 전달하거나, `VITE_API_BASE_URL`로 별도 백엔드를 지정하고 해당 서버에서 프론트 출처에 대한 CORS를 허용해야 합니다. 백엔드 설정은 이번 작업에서 변경하지 않았습니다.
 
-`npm.cmd run build` 결과는 dist 폴더에 만들어집니다.
-Vite 개발 프록시는 배포 결과물에는 포함되지 않습니다.
-- 같은 도메인: 정적 파일을 서비스하고 `/errors`를 Spring Boot로 전달하도록 운영 서버 설정.
-- 별도 도메인: 빌드 전에 VITE_API_BASE_URL에 실제 백엔드 HTTPS 주소 설정, Spring에 프론트 도메인 CORS 허용 필요.
-두 경우 모두 DB 비밀번호 등 비밀값을 프론트 환경변수에 넣지 마세요.
-화면 이동은 hash URL을 사용하므로 기본 정적 호스팅에서도 상세 화면 새로고침이 가능합니다.
-지금은 로컬 실행용 준비이며 배포·GitHub push는 수행하지 않았습니다.
+## 실제 API와 데이터 흐름
 
-참고: https://vite.dev/guide/ / https://vite.dev/config/server-options.html
+| 사용자 동작 | 호출 위치 | 요청 | 화면 표시 |
+|---|---|---|---|
+| 검색 버튼/Enter, 기본 부분 검색 | `main.jsx`의 submit → route effect → `api.js`의 searchErrors | `GET /errors/search/partial?keyword=검색어` | 배열의 name, language, description을 결과 카드로 표시 |
+| 정확한 이름으로 검색 체크 후 검색 | 동일 | `GET /errors/search?name=검색어` | 단일 DTO를 카드 목록 형태로 표시 |
+| 검색 결과의 에러 이름/상세 보기 클릭 | `main.jsx`의 detail route effect → `api.js`의 getError | `GET /errors/{id}` | 기본 정보, causes, solutions, codeExamples, similarErrors |
+| AI로 분석하기 버튼 | `ErrorAnalysis.jsx`의 handleAnalyze → `api.js`의 analyzeError | `POST /api/analyze`, JSON `{ "errorLog": "입력한 로그 원문" }` | summary=에러 요약, cause=원인, solution=해결 방법 |
+
+검색어는 앞뒤 공백을 제거하고 URL 인코딩합니다. 상세 조회는 응답의 id를 사용합니다. 분석은 공백뿐인 입력을 차단하되 유효한 로그의 공백·줄바꿈은 원문대로 전송합니다. 사용자 식별자나 인증 정보는 추가하지 않습니다.
+
+상세 DTO의 실제 필드: id, name, language, type, category, messagePattern, description, causes(문자열 배열), solutions(문자열 배열), codeExamples(badCode/goodCode/explanation), similarErrors(이름 배열). 유사 에러는 반환된 이름으로 정확 검색합니다.
+
+현재 ErrorAnalysisService는 AI 응답 전체를 summary에 넣고 cause와 solution은 빈 문자열로 반환합니다. 프론트는 내용을 임의로 분리하거나 추측하지 않습니다. 빈 문자열·null·누락 필드는 빈 값으로 처리하고 해당 영역에 '서버에서 반환된 내용이 없습니다.'를 표시합니다. 이것은 실제 빈 응답 안내이며 임시 mock 결과가 아닙니다.
+
+분석 요청 중에는 '분석 중...'을 표시하고 중복 제출을 차단합니다. 실패 시 오류 안내를 표시하고 재시도가 가능하도록 버튼을 복구합니다. 탭을 떠나면 진행 중인 분석 요청을 취소합니다. 검색/상세는 15초, AI 분석은 60초 후 지연 오류를 안내합니다.
+
+## 수정 파일
+
+- src/api.js: 공통 GET/POST 요청 처리, 분석 API 함수, DTO 빈 필드 처리, 요청 취소 및 시간 제한.
+- src/components/ErrorAnalysis.jsx: 임시 안내 제거, 실제 분석 요청 및 결과 3개 영역, 입력 검증·로딩·실패 처리.
+- src/main.jsx: 정확 검색 체크박스와 URL 연동, 미구현 사용자 메뉴·페이지·버튼 제거. 기존 검색·상세 연결과 디자인 유지.
+- src/style.css: 정확 검색 체크박스의 간격과 정렬만 추가.
+- vite.config.js: 기존 검색 프록시에 분석 프록시 추가.
+- tests/api.test.mjs: 분석 JSON 전송, 빈 필드, 빈 입력 차단, 서버 실패, 취소 테스트 추가.
+- README.md: 실제 실행 조건, API 흐름과 검증 결과 정리.
+
+## 검증 결과
+
+- npm install 성공. 이 작업 환경에서는 기본 npm 캐시 접근 제한으로 작업 디렉터리의 별도 캐시를 지정했습니다.
+- npm test: 12개 통과. 테스트의 fetch 대체 응답은 테스트 파일 내부에만 있으며 제품 코드에는 mock 데이터가 없습니다.
+- npm run build 성공.
+- npm run dev 정상 기동.
+- 브라우저에서 두 탭, 빈 검색/분석 입력 검증, 정확/부분 검색 선택, 백엔드 미접속 오류 표시와 분석 버튼 복구 확인.
+- Vite 로그에서 `/errors/search?name=NullPointerException`, `/errors/search/partial?keyword=NullPointerException`, `/api/analyze` 요청 전달 확인.
+- 이 환경의 백엔드 8080 및 DB 3306이 실행되지 않아 ECONNREFUSED가 발생했습니다. 실제 DB 결과 → 상세 클릭, Gemini 성공 응답의 브라우저 표시는 미검증입니다. 실행 중인 백엔드를 연결한 뒤 확인해야 합니다.
+- 기존 의존성의 npm audit 결과 source-map-js 간접 의존성에서 high 1건이 보고되었습니다. 이번 API 연동 범위에서는 패키지 버전과 lockfile을 변경하지 않았습니다.
+
+## 구현하지 않은 기능
+
+로그인, 회원가입, JWT, 즐겨찾기, 검색 기록, 해결 기록, 사용자 기능, 마이페이지, 관리자 페이지는 구현하지 않았습니다. 관련 기존 임시 화면·버튼도 제거했습니다. 새 백엔드 API, DTO/경로 변경, AI 응답 파싱 기능도 추가하지 않았습니다.

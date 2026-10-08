@@ -4,11 +4,11 @@ export class ApiError extends Error {
     super(message); Object.assign(this, { description, suggestion, status });
   }
 }
-async function get(path, signal) {
-  const timeout = AbortSignal.timeout(15000);
+async function request(path, signal = new AbortController().signal, options = {}) {
+  const timeout = AbortSignal.timeout(options.method === 'POST' ? 60000 : 15000);
   let response;
   try {
-    response = await fetch(`${base}${path}`, { signal: AbortSignal.any([signal, timeout]), headers: { Accept: 'application/json' } });
+    response = await fetch(`${base}${path}`, { ...options, signal: AbortSignal.any([signal, timeout]), headers: { Accept: 'application/json', ...options.headers } });
   } catch (error) {
     if (signal.aborted) throw error;
     throw new ApiError(timeout.aborted ? '응답 시간이 길어지고 있어요.' : '서버에 연결할 수 없어요.', '', '잠시 후 다시 시도해 주세요.');
@@ -26,13 +26,23 @@ async function get(path, signal) {
 }
 export async function searchErrors(keyword, exact, signal) {
   const path = exact ? `/errors/search?${new URLSearchParams({ name: keyword })}` : `/errors/search/partial?${new URLSearchParams({ keyword })}`;
-  const data = await get(path, signal);
+  const data = await request(path, signal);
   const list = exact ? [data] : data;
   if (!Array.isArray(list) || list.some(item => item?.id == null || typeof item.name !== 'string')) throw new ApiError('검색 결과 형식을 확인할 수 없어요.');
   return list;
 }
 export async function getError(id, signal) {
-  const data = await get(`/errors/${encodeURIComponent(id)}`, signal);
+  const data = await request(`/errors/${encodeURIComponent(id)}`, signal);
   if (data.id == null || typeof data.name !== 'string') throw new ApiError('상세 정보 형식을 확인할 수 없어요.');
   return data;
+}
+export async function analyzeError(errorLog, signal) {
+  if (!errorLog.trim()) throw new ApiError('분석할 에러 로그를 입력해 주세요.');
+  const data = await request('/api/analyze', signal, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ errorLog })
+  });
+  if (typeof data !== 'object' || Array.isArray(data)) throw new ApiError('분석 결과 형식을 확인할 수 없어요.');
+  return Object.fromEntries(['summary', 'cause', 'solution'].map(key => [key, typeof data[key] === 'string' ? data[key] : '']));
 }

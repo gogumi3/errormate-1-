@@ -4,7 +4,10 @@ export default defineConfig(({ mode }) => {
   return {
     server: {
       port: 5173, strictPort: true,
-      proxy: { '/errors': { target: env.BACKEND_URL || 'http://localhost:8080', changeOrigin: true } }
+      proxy: {
+        '/errors': { target: env.BACKEND_URL || 'http://localhost:8080', changeOrigin: true },
+        '/api/analyze': { target: env.BACKEND_URL || 'http://localhost:8080', changeOrigin: true }
+      }
     }
   };
 });
