@@ -11,3 +11,7 @@ spring:
 
   flyway:
     enabled: true
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
