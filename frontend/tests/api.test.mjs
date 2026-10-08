@@ -31,3 +31,36 @@ test('network failure becomes connection guidance', async () => {
  globalThis.fetch=async()=>{throw new TypeError('fetch failed')};
  await assert.rejects(api.getError(1,signal()),e=>e.message==='서버에 연결할 수 없어요.');
 });
+
+test('analysis sends only the original errorLog as JSON', async () => {
+ const errorLog = '  java.lang.Exception\n    at example.main(Main.java:1)';
+ globalThis.fetch = async (url, options) => {
+  assert.equal(url, '/api/analyze');
+  assert.equal(options.method, 'POST');
+  assert.equal(options.headers['Content-Type'], 'application/json');
+  assert.deepEqual(JSON.parse(options.body), {errorLog});
+  return Response.json({summary:'요약',cause:'원인',solution:'해결'});
+ };
+ assert.deepEqual(await api.analyzeError(errorLog,signal()), {summary:'요약',cause:'원인',solution:'해결'});
+});
+test('analysis accepts empty, missing and null DTO fields', async () => {
+ for (const response of [{summary:'전체 응답',cause:'',solution:''}, {summary:null}, {}]) {
+  globalThis.fetch = async () => Response.json(response);
+  const result = await api.analyzeError('log',signal());
+  assert.equal(result.cause,''); assert.equal(result.solution,'');
+  assert.equal(result.summary,response.summary || '');
+ }
+});
+test('blank analysis never sends a request', async () => {
+ globalThis.fetch = async () => { assert.fail('should not fetch'); };
+ await assert.rejects(api.analyzeError(' \n ',signal()), /입력/);
+});
+test('analysis server failure is reported safely', async () => {
+ globalThis.fetch = async () => new Response('private server details',{status:500});
+ await assert.rejects(api.analyzeError('log',signal()), /요청을 처리하지 못했어요/);
+});
+test('aborted analysis remains cancelled', async () => {
+ const controller = new AbortController(); controller.abort();
+ globalThis.fetch = async (url,options) => { options.signal.throwIfAborted(); };
+ await assert.rejects(api.analyzeError('log',controller.signal), {name:'AbortError'});
+});
