@@ -4,12 +4,14 @@ import { searchErrors, getError } from './api';
 import ErrorAnalysis from './components/ErrorAnalysis';
 import './style.css';
 
+const menus = [['search', '에러 검색'], ['favorites', '즐겨찾기'], ['history', '검색 기록'], ['solved', '해결 기록'], ['login', '로그인']];
 function routeFromHash() {
   const raw = location.hash.slice(1) || '/';
   const [path, query = ''] = raw.split('?');
   if (path === '/') return { page: 'search', q: new URLSearchParams(query).get('q') || '', exact: new URLSearchParams(query).get('exact') === '1' };
   if (/^\/errors\/\d+$/.test(path)) return { page: 'detail', id: path.split('/')[2] };
-  return { page: 'missing' };
+  const page = path.slice(1);
+  return { page: menus.some(([key]) => key === page) ? page : 'missing' };
 }
 function ErrorNotice({ error, retry }) {
   return <section className="notice" role="alert"><h2>{error.message}</h2>{error.description && <p>{error.description}</p>}{error.suggestion && <p>{error.suggestion}</p>}{retry && <button onClick={retry}>다시 시도</button>}</section>;
@@ -69,7 +71,7 @@ function App() {
     catch { setCopyMessage('복사하지 못했어요. 코드를 선택해서 직접 복사해 주세요.'); }
   }
   const detail = route.page === 'detail' ? state.data : null;
-  return <><header><a className="brand" href="#/">ErrorMate<span>에러를 이해하는 시간</span></a></header>
+  return <><header><a className="brand" href="#/">ErrorMate<span>에러를 이해하는 시간</span></a><nav aria-label="주 메뉴">{menus.map(([key, label]) => <a key={key} href={key === 'search' ? '#/' : `#/${key}`} onClick={() => { if (key === 'search') setActiveTool('search'); }} aria-current={route.page === key || (key === 'search' && route.page === 'detail') ? 'page' : undefined}>{label}</a>)}</nav></header>
     <main>
       {route.page === 'search' && <><div className="intro"><p className="eyebrow">개발자를 위한 에러 노트</p><h1>어떤 에러를 만났나요?</h1><p>에러의 의미부터 원인과 해결 방법까지 확인하세요.</p></div>
         <div className="tool-tabs" role="tablist" aria-label="에러 도구 선택"><button type="button" id="search-tab" role="tab" aria-selected={activeTool === 'search'} aria-controls="search-panel" onClick={() => setActiveTool('search')}>에러 검색</button><button type="button" id="analysis-tab" role="tab" aria-selected={activeTool === 'analysis'} aria-controls="analysis-panel" onClick={() => setActiveTool('analysis')}>에러 분석</button></div>
@@ -85,6 +87,7 @@ function App() {
         <section className="panel"><h2>비슷한 에러</h2>{detail.similarErrors?.length ? <div className="actions">{detail.similarErrors.map((name, i) => <a className="pill" key={i} href={'#/?' + new URLSearchParams({ q: name, exact: '1' })}>{name} 검색 →</a>)}</div> : <p className="muted">아직 연결된 에러가 없습니다.</p>}</section></>}</>}
       {state.loading && (route.page !== 'search' || activeTool === 'search') && <p role="status" className="panel">정보를 불러오는 중입니다…</p>}
       {state.error && (route.page !== 'search' || activeTool === 'search') && <ErrorNotice error={state.error} retry={() => setRetry(n => n + 1)}/>}
+      {['favorites', 'history', 'solved', 'login'].includes(route.page) && <section className="panel placeholder"><span className="tag">준비 중</span><h1>{menus.find(([key]) => key === route.page)[1]}</h1><p>아직 사용할 수 없는 기능입니다.</p><a href="#/">에러 검색으로 돌아가기 →</a></section>}
       {route.page === 'missing' && <section className="panel"><h1>페이지를 찾을 수 없어요.</h1><a href="#/">검색으로 이동</a></section>}
     </main><footer>ErrorMate · 검색하는 시간을 줄이고, 에러를 이해하는 시간을 늘린다.</footer></>;
 }
