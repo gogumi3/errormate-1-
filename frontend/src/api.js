@@ -44,5 +44,5 @@ export async function analyzeError(errorLog, signal) {
     body: JSON.stringify({ errorLog })
   });
   if (typeof data !== 'object' || Array.isArray(data)) throw new ApiError('분석 결과 형식을 확인할 수 없어요.');
-  return Object.fromEntries(['summary', 'cause', 'solution'].map(key => [key, typeof data[key] === 'string' ? data[key] : '']));
+  return Object.fromEntries(['errorName', 'location', 'problematicCode', 'summary', 'cause', 'solution'].map(key => [key, typeof data[key] === 'string' ? data[key] : '']));
 }

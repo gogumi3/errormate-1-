@@ -32,13 +32,23 @@ BACKEND_URL=http://localhost:8080
 | 검색 버튼/Enter, 기본 부분 검색 | `main.jsx`의 submit → route effect → `api.js`의 searchErrors | `GET /errors/search/partial?keyword=검색어` | 배열의 name, language, description을 결과 카드로 표시 |
 | 정확한 이름으로 검색 체크 후 검색 | 동일 | `GET /errors/search?name=검색어` | 단일 DTO를 카드 목록 형태로 표시 |
 | 검색 결과의 에러 이름/상세 보기 클릭 | `main.jsx`의 detail route effect → `api.js`의 getError | `GET /errors/{id}` | 기본 정보, causes, solutions, codeExamples, similarErrors |
-| AI로 분석하기 버튼 | `ErrorAnalysis.jsx`의 handleAnalyze → `api.js`의 analyzeError | `POST /api/analyze`, JSON `{ "errorLog": "입력한 로그 원문" }` | summary=에러 요약, cause=원인, solution=해결 방법 |
+| AI로 분석하기 버튼 | `ErrorAnalysis.jsx`의 handleAnalyze → `api.js`의 analyzeError | `POST /api/analyze`, JSON `{ "errorLog": "입력한 로그 원문" }` | errorName=감지된 에러, location=문제 위치, problematicCode=문제 코드, summary=에러 요약, cause=원인, solution=해결 방법 |
+| 이 에러 검색하기 버튼 | `ErrorAnalysis.jsx` → `main.jsx`의 openSearch → 기존 route effect와 searchErrors | `GET /errors/search/partial?keyword=감지된에러명` | 에러 검색 탭으로 이동, 검색어 자동 입력 및 자동 검색. 동일한 검색 URL에서도 다시 요청 |
 
 검색어는 앞뒤 공백을 제거하고 URL 인코딩합니다. 상세 조회는 응답의 id를 사용합니다. 분석은 공백뿐인 입력을 차단하되 유효한 로그의 공백·줄바꿈은 원문대로 전송합니다. 사용자 식별자나 인증 정보는 추가하지 않습니다.
 
 상세 DTO의 실제 필드: id, name, language, type, category, messagePattern, description, causes(문자열 배열), solutions(문자열 배열), codeExamples(badCode/goodCode/explanation), similarErrors(이름 배열). 유사 에러는 반환된 이름으로 정확 검색합니다.
 
-현재 ErrorAnalysisService는 AI 응답 전체를 summary에 넣고 cause와 solution은 빈 문자열로 반환합니다. 프론트는 내용을 임의로 분리하거나 추측하지 않습니다. 빈 문자열·null·누락 필드는 빈 값으로 처리하고 해당 영역에 '서버에서 반환된 내용이 없습니다.'를 표시합니다. 이것은 실제 빈 응답 안내이며 임시 mock 결과가 아닙니다.
+분석 응답의 6개 필드를 그대로 사용하며 내용을 임의로 분리하거나 추측하지 않습니다. 감지된 에러 이름을 기존 요약·원인·해결 방법 카드 위에서 강조하고, 그 아래에 위치와 코드를 표시합니다. errorName/location/problematicCode가 null·누락·빈 문자열·공백·'확인 불가'이면 '확인 불가'로 표시합니다. 유효한 errorName이 있을 때만 '이 에러 검색하기' 버튼이 나타납니다. summary/cause/solution의 빈 값 안내는 기존대로 '서버에서 반환된 내용이 없습니다.'를 유지합니다. 코드의 줄바꿈은 보존하며 긴 내용은 카드 안에서 줄바꿈합니다.
+
+### 분석 결과 확장 검증 (2026-10-10)
+
+- 최신 main `5ac0a45`를 기준으로 frontend만 수정했습니다.
+- `npm ci`, `npm test`(13개 통과), `npm run build` 성공.
+- 기존 API 테스트에서 6개 필드 보존과 새 필드의 null·빈 문자열·공백·확인 불가·잘못된 타입 처리를 검증했습니다. 테스트용 fetch 대체는 기존 단위 테스트 내부에만 있고 앱에는 mock 데이터가 없습니다.
+- 브라우저에서 상단 메뉴 5개 유지, 검색/분석 탭 전환, 빈 검색어/로그 입력 차단, 실제 검색/분석 요청 실패 안내, 분석 버튼 복구를 확인했습니다.
+- 이 환경에서 localhost:8080 백엔드가 실행되지 않아 실제 검색 결과/상세 조회/AI 성공 응답과 새 결과 카드 표시 및 검색 버튼 클릭의 종단간 검증은 수행하지 못했습니다. 실행 중인 백엔드에서 분석 후 6개 필드와 자동 검색 결과를 확인해야 합니다.
+- 의존성과 lockfile은 변경하지 않았습니다. 설치 시 기존 의존성 high 취약점 1건이 보고되었습니다.
 
 분석 요청 중에는 '분석 중...'을 표시하고 중복 제출을 차단합니다. 실패 시 오류 안내를 표시하고 재시도가 가능하도록 버튼을 복구합니다. 탭을 떠나면 진행 중인 분석 요청을 취소합니다. 검색/상세는 15초, AI 분석은 60초 후 지연 오류를 안내합니다.
 

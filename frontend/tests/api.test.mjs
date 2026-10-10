@@ -39,9 +39,9 @@ test('analysis sends only the original errorLog as JSON', async () => {
   assert.equal(options.method, 'POST');
   assert.equal(options.headers['Content-Type'], 'application/json');
   assert.deepEqual(JSON.parse(options.body), {errorLog});
-  return Response.json({summary:'요약',cause:'원인',solution:'해결'});
+  return Response.json({errorName:'NullPointerException',location:'UserService.java:42',problematicCode:'user.getName()',summary:'요약',cause:'원인',solution:'해결'});
  };
- assert.deepEqual(await api.analyzeError(errorLog,signal()), {summary:'요약',cause:'원인',solution:'해결'});
+ assert.deepEqual(await api.analyzeError(errorLog,signal()), {errorName:'NullPointerException',location:'UserService.java:42',problematicCode:'user.getName()',summary:'요약',cause:'원인',solution:'해결'});
 });
 test('analysis accepts empty, missing and null DTO fields', async () => {
  for (const response of [{summary:'전체 응답',cause:'',solution:''}, {summary:null}, {}]) {
@@ -49,6 +49,14 @@ test('analysis accepts empty, missing and null DTO fields', async () => {
   const result = await api.analyzeError('log',signal());
   assert.equal(result.cause,''); assert.equal(result.solution,'');
   assert.equal(result.summary,response.summary || '');
+  assert.equal(result.errorName,''); assert.equal(result.location,''); assert.equal(result.problematicCode,'');
+ }
+});
+test('analysis metadata tolerates null, blank, unavailable and non-string values', async () => {
+ for (const value of [null, '', '   ', '확인 불가', 42, {}, []]) {
+  globalThis.fetch = async () => Response.json({errorName:value,location:value,problematicCode:value});
+  const result = await api.analyzeError('log',signal());
+  for (const key of ['errorName','location','problematicCode']) assert.equal(result[key],typeof value === 'string' ? value : '');
  }
 });
 test('blank analysis never sends a request', async () => {

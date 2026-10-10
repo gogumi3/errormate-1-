@@ -61,8 +61,11 @@ function App() {
     event.preventDefault();
     const keyword = input.trim();
     if (!keyword) { setValidation('검색어를 입력해 주세요.'); field.current?.focus(); return; }
-    setValidation('');
-    const next = '#/?' + new URLSearchParams({ q: keyword, ...(exact ? { exact: '1' } : {}) });
+    openSearch(keyword, exact);
+  }
+  function openSearch(keyword, exactMatch = false) {
+    setValidation(''); setInput(keyword); setExact(exactMatch); setActiveTool('search');
+    const next = '#/?' + new URLSearchParams({ q: keyword, ...(exactMatch ? { exact: '1' } : {}) });
     if (location.hash === next) setRetry(value => value + 1);
     else location.hash = next;
   }
@@ -79,7 +82,7 @@ function App() {
           <form onSubmit={submit} className="panel" role="search"><label htmlFor="keyword">에러 이름 검색</label><div className="search-row"><input ref={field} id="keyword" value={input} onChange={e => { setInput(e.target.value); setValidation(''); }} placeholder="예: NullPointerException 또는 Null" aria-invalid={!!validation} aria-describedby={validation ? 'validation' : undefined}/><button className="primary" type="submit">검색</button></div><label className="search-mode"><input type="checkbox" checked={exact} onChange={e => setExact(e.target.checked)}/> 정확한 이름으로 검색</label>{validation && <p id="validation" role="alert" className="validation">{validation}</p>}</form>
           {!route.q && <p className="muted">에러 이름이나 이름 일부를 입력해 시작하세요.</p>}
           {!state.loading && !state.error && Array.isArray(state.data) && <section aria-label="검색 결과"><h2>검색 결과 <span className="muted">{state.data.length}개</span></h2>{state.data.length === 0 ? <div className="panel"><h3>검색 결과가 없습니다.</h3><p>철자를 확인하거나 더 짧은 이름으로 검색해 보세요.</p></div> : <div className="results">{state.data.map(item => <article className="panel result" key={item.id}><div><span className="tag">{item.language || '에러'}</span><h3><a href={`#/errors/${item.id}`}>{item.name}</a></h3><p>{item.description || '설명이 아직 등록되지 않았습니다.'}</p><a href={`#/errors/${item.id}`}>상세 보기 →</a></div></article>)}</div>}</section>}
-        </div> : <ErrorAnalysis/>}
+        </div> : <ErrorAnalysis onSearchError={openSearch}/>}
       </>}
       {route.page === 'detail' && <><a className="back" href={lastSearch.current}>← 검색으로 돌아가기</a>{detail && <><section className="panel"><span className="tag">{detail.language || '에러'}</span><h1>{detail.name}</h1><p className="muted">{[detail.type, detail.category].filter(Boolean).join(' · ')}</p><p className="multiline">{detail.description || '아직 설명이 없습니다.'}</p>{detail.messagePattern && <><h2>에러 메시지 예시</h2><pre><code>{detail.messagePattern}</code></pre></>}</section>
         <div className="columns"><TextList title="왜 발생하나요?" items={detail.causes}/><TextList title="어떻게 해결하나요?" items={detail.solutions}/></div>
