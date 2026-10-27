@@ -4,6 +4,58 @@ import { readFile } from 'node:fs/promises';
 const source = (await readFile(new URL('../src/api.js', import.meta.url), 'utf8')).replace('import.meta.env.VITE_API_BASE_URL', "''");
 const api = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 const signal = () => new AbortController().signal;
+for (const [path, list, add, remove, check] of [
+ ['/favorites', api.getFavorites, api.addFavorite, api.removeFavorite, api.checkFavorite],
+ ['/solved', api.getSolvedHistory, api.addSolved, api.removeSolved, api.checkSolved]
+]) {
+ test(`${path}: list preserves error DTOs and empty lists`, async () => {
+  for (const data of [[], [{id:1,name:'NullPointerException',language:'Java',description:'설명'}]]) {
+   globalThis.fetch = async (url, options) => { assert.equal(url,path); assert.equal(options.body,undefined); return Response.json(data); };
+   assert.deepEqual(await list(signal()), data);
+  }
+ });
+ test(`${path}: checks accept both true and false, reject non-booleans`, async () => {
+  for (const value of [true,false]) {
+   globalThis.fetch = async url => { assert.equal(url,`${path}/1/check`); return Response.json(value); };
+   assert.equal(await check(1,signal()),value);
+  }
+  for (const value of ['false',{},0,null]) {
+   globalThis.fetch = async () => Response.json(value);
+   await assert.rejects(check(1,signal()),api.ApiError);
+  }
+ });
+ test(`${path}: writes encode IDs, send no user ID, accept empty/text/JSON success`, async () => {
+  for (const [action,method] of [[add,'POST'],[remove,'DELETE']]) {
+   for (const response of [() => new Response(null,{status:204}), () => new Response(null,{status:200}), () => new Response('ok'), () => Response.json({message:'완료'})]) {
+    globalThis.fetch = async (url, options) => {
+     assert.equal(url,`${path}/a%2Fb`); assert.equal(options.method,method);
+     assert.equal(options.body,undefined); assert.equal(options.ignoreResponse,undefined);
+     return response();
+    };
+    await action('a/b',signal());
+   }
+  }
+ });
+ test(`${path}: malformed list and empty GET are rejected`, async () => {
+  for (const value of [{},[null],[{id:1}],[{name:'Null'}]]) {
+   globalThis.fetch = async () => Response.json(value);
+   await assert.rejects(list(signal()),api.ApiError);
+  }
+  globalThis.fetch = async () => new Response(null,{status:204});
+  await assert.rejects(list(signal()),api.ApiError);
+ });
+ test(`${path}: failures and cancellation remain errors for all operations`, async () => {
+  for (const action of [s => list(s),s => add(1,s),s => remove(1,s),s => check(1,s)]) {
+   globalThis.fetch = async () => new Response('internal details',{status:500});
+   await assert.rejects(action(signal()),e=>e.status===500 && e.message==='요청을 처리하지 못했어요.');
+   globalThis.fetch = async () => { throw new TypeError('offline'); };
+   await assert.rejects(action(signal()),/서버에 연결할 수 없어요/);
+   const controller = new AbortController(); controller.abort();
+   globalThis.fetch = async (url,options) => options.signal.throwIfAborted();
+   await assert.rejects(action(controller.signal),{name:'AbortError'});
+  }
+ });
+}
 test('partial search encodes Korean and reserved characters', async () => {
  globalThis.fetch = async url => { assert.equal(new URL(url, 'http://test').searchParams.get('keyword'), '널 &?'); return Response.json([{id: 1, name: 'NullPointerException'}]); };
  assert.equal((await api.searchErrors('널 &?', false, signal())).length, 1);

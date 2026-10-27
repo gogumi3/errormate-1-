@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { searchErrors, getError } from './api';
+import { searchErrors, getError, getFavorites, addFavorite, removeFavorite, checkFavorite, getSolvedHistory, addSolved, removeSolved, checkSolved } from './api';
 import ErrorAnalysis from './components/ErrorAnalysis';
 import './style.css';
 
@@ -18,6 +18,74 @@ function ErrorNotice({ error, retry }) {
 }
 function TextList({ title, items }) {
   return <section className="panel"><h2>{title}</h2>{Array.isArray(items) && items.length ? <ul>{items.map((text, i) => <li className="multiline" key={i}>{text}</li>)}</ul> : <p className="muted">아직 등록된 내용이 없습니다.</p>}</section>;
+}
+const savedFeatures = {
+  favorites: { title: '즐겨찾기', off: '☆ 즐겨찾기', on: '★ 즐겨찾기됨', empty: '아직 즐겨찾기한 에러가 없습니다.', hint: '에러 상세페이지에서 즐겨찾기를 추가해 보세요.', get: getFavorites, check: checkFavorite, add: addFavorite, remove: removeFavorite },
+  solved: { title: '해결 기록', off: '✓ 해결했어요', on: '✓ 해결됨', empty: '아직 해결 기록이 없습니다.', hint: '에러를 해결했다면 상세페이지에서 해결했어요 버튼을 눌러 보세요.', get: getSolvedHistory, check: checkSolved, add: addSolved, remove: removeSolved }
+};
+function SavedToggle({ errorId, feature }) {
+  const [saved, setSaved] = useState(null);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState(null);
+  const [retry, setRetry] = useState(0);
+  const [message, setMessage] = useState('');
+  const pending = useRef(true);
+  const controllerRef = useRef(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    pending.current = true; setBusy(true); setSaved(null); setError(null);
+    feature.check(errorId, controller.signal).then(value => {
+      if (!controller.signal.aborted) setSaved(value);
+    }).catch(reason => {
+      if (!controller.signal.aborted) setError(reason);
+    }).finally(() => {
+      if (!controller.signal.aborted) { pending.current = false; setBusy(false); }
+    });
+    return () => controller.abort();
+  }, [errorId, feature, retry]);
+  async function toggle() {
+    if (pending.current || saved === null) return;
+    const controller = controllerRef.current;
+    pending.current = true; setBusy(true); setError(null); setMessage('');
+    try {
+      await (saved ? feature.remove : feature.add)(errorId, controller.signal);
+      if (!controller.signal.aborted) {
+        setSaved(!saved);
+        setMessage(`${feature.title}${saved ? '에서 삭제했어요.' : '에 추가했어요.'}`);
+      }
+    } catch (reason) {
+      // A timed-out write may still have reached the server. Recheck before another toggle.
+      if (!controller.signal.aborted) { setError(reason); setSaved(null); }
+    } finally {
+      if (!controller.signal.aborted) { pending.current = false; setBusy(false); }
+    }
+  }
+  return <div className="saved-action">
+    <button type="button" disabled={busy || saved === null} aria-pressed={saved === true} aria-busy={busy} onClick={toggle}>{saved ? feature.on : feature.off}</button>
+    <p className="muted" role="status">{busy ? `${feature.title} ${saved === null ? '상태 확인' : '변경'} 중…` : message}</p>
+    {error && <ErrorNotice error={error} retry={() => setRetry(n => n + 1)}/>}
+  </div>;
+}
+function SavedPage({ feature }) {
+  const [state, setState] = useState({ loading: true, data: [], error: null });
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setState({ loading: true, data: [], error: null });
+    feature.get(controller.signal).then(data => {
+      if (!controller.signal.aborted) setState({ loading: false, data, error: null });
+    }).catch(error => {
+      if (!controller.signal.aborted) setState({ loading: false, data: [], error });
+    });
+    return () => controller.abort();
+  }, [feature, retry]);
+  return <section aria-label={feature.title}><h1>{feature.title}</h1>
+    {state.loading ? <p role="status" className="panel">정보를 불러오는 중입니다…</p> : state.error ? <ErrorNotice error={state.error} retry={() => setRetry(n => n + 1)}/> : <>
+      <p className="muted">{state.data.length}개의 에러</p>
+      {state.data.length === 0 ? <div className="panel"><h2>{feature.empty}</h2><p>{feature.hint}</p><a href="#/">에러 검색으로 이동 →</a></div> : <div className="results">{state.data.map(item => <article className="panel result" key={item.id}><div><span className="tag">{item.language || '에러'}</span><h3><a href={`#/errors/${item.id}`}>{item.name}</a></h3><p>{item.description || '설명이 아직 등록되지 않았습니다.'}</p><a href={`#/errors/${item.id}`}>상세 보기 →</a></div></article>)}</div>}
+    </>}
+  </section>;
 }
 function App() {
   const [route, setRoute] = useState(routeFromHash);
@@ -73,7 +141,7 @@ function App() {
     try { await navigator.clipboard.writeText(code); setCopyMessage('코드를 복사했어요.'); }
     catch { setCopyMessage('복사하지 못했어요. 코드를 선택해서 직접 복사해 주세요.'); }
   }
-  const detail = route.page === 'detail' ? state.data : null;
+  const detail = route.page === 'detail' && String(state.data?.id) === route.id ? state.data : null;
   return <><header><a className="brand" href="#/">ErrorMate<span>에러를 이해하는 시간</span></a><nav aria-label="주 메뉴">{menus.map(([key, label]) => <a key={key} href={key === 'search' ? '#/' : `#/${key}`} onClick={() => { if (key === 'search') setActiveTool('search'); }} aria-current={route.page === key || (key === 'search' && route.page === 'detail') ? 'page' : undefined}>{label}</a>)}</nav></header>
     <main>
       {route.page === 'search' && <><div className="intro"><p className="eyebrow">개발자를 위한 에러 노트</p><h1>어떤 에러를 만났나요?</h1><p>에러의 의미부터 원인과 해결 방법까지 확인하세요.</p></div>
@@ -85,12 +153,14 @@ function App() {
         </div> : <ErrorAnalysis onSearchError={openSearch}/>}
       </>}
       {route.page === 'detail' && <><a className="back" href={lastSearch.current}>← 검색으로 돌아가기</a>{detail && <><section className="panel"><span className="tag">{detail.language || '에러'}</span><h1>{detail.name}</h1><p className="muted">{[detail.type, detail.category].filter(Boolean).join(' · ')}</p><p className="multiline">{detail.description || '아직 설명이 없습니다.'}</p>{detail.messagePattern && <><h2>에러 메시지 예시</h2><pre><code>{detail.messagePattern}</code></pre></>}</section>
+        <section className="panel saved-actions" aria-label="에러 기록" key={route.id}>{Object.entries(savedFeatures).map(([key, feature]) => <SavedToggle key={key} errorId={route.id} feature={feature}/>)}</section>
         <div className="columns"><TextList title="왜 발생하나요?" items={detail.causes}/><TextList title="어떻게 해결하나요?" items={detail.solutions}/></div>
         <section className="panel"><h2>코드 예제</h2><p role="status">{copyMessage}</p>{detail.codeExamples?.length ? detail.codeExamples.map((example, index) => <article className="example" key={index}><h3>예제 {index + 1}</h3>{[['badCode', '문제가 있는 코드'], ['goodCode', '수정한 코드']].map(([key, label]) => example[key] && <div key={key}><div className="code-label"><h4>{label}</h4><button onClick={() => copy(example[key])}>복사</button></div><pre><code>{example[key]}</code></pre></div>)}{example.explanation && <p className="multiline">{example.explanation}</p>}</article>) : <p className="muted">아직 등록된 코드 예제가 없습니다.</p>}</section>
         <section className="panel"><h2>비슷한 에러</h2>{detail.similarErrors?.length ? <div className="actions">{detail.similarErrors.map((name, i) => <a className="pill" key={i} href={'#/?' + new URLSearchParams({ q: name, exact: '1' })}>{name} 검색 →</a>)}</div> : <p className="muted">아직 연결된 에러가 없습니다.</p>}</section></>}</>}
       {state.loading && (route.page !== 'search' || activeTool === 'search') && <p role="status" className="panel">정보를 불러오는 중입니다…</p>}
       {state.error && (route.page !== 'search' || activeTool === 'search') && <ErrorNotice error={state.error} retry={() => setRetry(n => n + 1)}/>}
-      {['favorites', 'history', 'solved', 'login'].includes(route.page) && <section className="panel placeholder"><span className="tag">준비 중</span><h1>{menus.find(([key]) => key === route.page)[1]}</h1><p>아직 사용할 수 없는 기능입니다.</p><a href="#/">에러 검색으로 돌아가기 →</a></section>}
+      {savedFeatures[route.page] && <SavedPage key={route.page} feature={savedFeatures[route.page]}/>}
+      {['history', 'login'].includes(route.page) && <section className="panel placeholder"><span className="tag">준비 중</span><h1>{menus.find(([key]) => key === route.page)[1]}</h1><p>아직 사용할 수 없는 기능입니다.</p><a href="#/">에러 검색으로 돌아가기 →</a></section>}
       {route.page === 'missing' && <section className="panel"><h1>페이지를 찾을 수 없어요.</h1><a href="#/">검색으로 이동</a></section>}
     </main><footer>ErrorMate · 검색하는 시간을 줄이고, 에러를 이해하는 시간을 늘린다.</footer></>;
 }

@@ -5,10 +5,11 @@ export class ApiError extends Error {
   }
 }
 async function request(path, signal = new AbortController().signal, options = {}) {
+  const { ignoreResponse = false, ...fetchOptions } = options;
   const timeout = AbortSignal.timeout(options.method === 'POST' ? 60000 : 15000);
   let response;
   try {
-    response = await fetch(`${base}${path}`, { ...options, signal: AbortSignal.any([signal, timeout]), headers: { Accept: 'application/json', ...options.headers } });
+    response = await fetch(`${base}${path}`, { ...fetchOptions, signal: AbortSignal.any([signal, timeout]), headers: { Accept: 'application/json', ...options.headers } });
   } catch (error) {
     if (signal.aborted) throw error;
     throw new ApiError(timeout.aborted ? '응답 시간이 길어지고 있어요.' : '서버에 연결할 수 없어요.', '', '잠시 후 다시 시도해 주세요.');
@@ -21,9 +22,28 @@ async function request(path, signal = new AbortController().signal, options = {}
     }
     throw new ApiError('요청을 처리하지 못했어요.', '', '잠시 후 다시 시도해 주세요.', response.status);
   }
-  if (!data) throw new ApiError('응답을 읽지 못했어요.', '', '잠시 후 다시 시도해 주세요.');
+  if (ignoreResponse) return;
+  if (data == null) throw new ApiError('응답을 읽지 못했어요.', '', '잠시 후 다시 시도해 주세요.');
   return data;
 }
+async function getSavedErrors(path, signal) {
+  const data = await request(path, signal);
+  if (!Array.isArray(data) || data.some(item => item?.id == null || typeof item.name !== 'string')) throw new ApiError('목록 형식을 확인할 수 없어요.');
+  return data;
+}
+async function checkSaved(path, signal) {
+  const data = await request(path, signal);
+  if (typeof data !== 'boolean') throw new ApiError('등록 상태를 확인할 수 없어요.');
+  return data;
+}
+export const getFavorites = signal => getSavedErrors('/favorites', signal);
+export const addFavorite = (errorId, signal) => request(`/favorites/${encodeURIComponent(errorId)}`, signal, { method: 'POST', ignoreResponse: true });
+export const removeFavorite = (errorId, signal) => request(`/favorites/${encodeURIComponent(errorId)}`, signal, { method: 'DELETE', ignoreResponse: true });
+export const checkFavorite = (errorId, signal) => checkSaved(`/favorites/${encodeURIComponent(errorId)}/check`, signal);
+export const getSolvedHistory = signal => getSavedErrors('/solved', signal);
+export const addSolved = (errorId, signal) => request(`/solved/${encodeURIComponent(errorId)}`, signal, { method: 'POST', ignoreResponse: true });
+export const removeSolved = (errorId, signal) => request(`/solved/${encodeURIComponent(errorId)}`, signal, { method: 'DELETE', ignoreResponse: true });
+export const checkSolved = (errorId, signal) => checkSaved(`/solved/${encodeURIComponent(errorId)}/check`, signal);
 export async function searchErrors(keyword, exact, signal) {
   const path = exact ? `/errors/search?${new URLSearchParams({ name: keyword })}` : `/errors/search/partial?${new URLSearchParams({ keyword })}`;
   const data = await request(path, signal);
