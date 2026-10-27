@@ -29,4 +29,9 @@ public class Favorite {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    public Favorite(User user, ErrorInfo error) {
+        this.user = user;
+        this.error = error;
+        this.createdAt = LocalDateTime.now();
+    }
 }

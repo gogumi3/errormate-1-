@@ -28,4 +28,10 @@ public class SolvedHistory {
 
     @Column(name = "solved_at", nullable = false)
     private LocalDateTime solvedAt;
+
+    public SolvedHistory(User user, ErrorInfo error) {
+        this.user = user;
+        this.error = error;
+        this.solvedAt = LocalDateTime.now();
+    }
 }
